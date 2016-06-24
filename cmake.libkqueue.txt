@@ -26,5 +26,4 @@ set(CMAKE_INSTALL_PREFIX				"/usr"																				CACHE PATH		"")
 set(CMAKE_LINKER						"/usr/bin/ld.gold"																	CACHE FILEPATH	"")
 
 set(STATIC_KQUEUE						ON																					CACHE BOOL		"")
-set(CPACK_BINARY_DEB					ON																					CACHE BOOL		"")
 

@@ -29,6 +29,7 @@ set(kqueue_VERSION "${kqueue_VERSION_MAJOR}.${kqueue_VERSION_MINOR}.${kqueue_VER
 file(GLOB_RECURSE INCL include/*.h)
 source_group(includes FILES ${INCL})
 set(kqueue_HDRS include/sys/event.h)
+set(kqueue_MANPAGES kqueue.2)
 
 if(WIN32)
 	file(GLOB SRC 
@@ -77,7 +78,6 @@ else()
 	)
 	add_definitions(
 		-Wall -Werror
-		-fpic
 		-D_XOPEN_SOURCE=600
 		-std=c99
 		-fvisibility=hidden
@@ -91,10 +91,13 @@ include_directories(
 	include
 )
 
+set(KQUEUE_NAME       "kqueue" CACHE STRING "Name of the library (e.g. \"kqueue\" for \"libkqueue\")")
+set(INCLUDE_DIRECTORY "kqueue" CACHE STRING "Subdirectory of the include path to install the headers.")
+
 #library (static or shared)
 add_library(kqueue_shared SHARED ${SRC} ${INCL})
 target_link_libraries(kqueue_shared ${LIB})
-set_target_properties(kqueue_shared PROPERTIES DEBUG_POSTFIX "D")
+set_target_properties(kqueue_shared PROPERTIES DEBUG_POSTFIX "D" LINKER_LANGUAGE C SOVERSION ${kqueue_VERSION} OUTPUT_NAME "${KQUEUE_NAME}")
 set(INSTALL_TARGETS kqueue_shared)
 
 option(STATIC_KQUEUE "Enable to build libkqueue as static lib" OFF)
@@ -103,7 +106,7 @@ if(STATIC_KQUEUE)
 	message("-- building libkqueue as static lib")
     add_library(kqueue_static STATIC ${SRC} ${INCL})
 	target_link_libraries(kqueue_static ${LIB})
-	set_target_properties(kqueue_static PROPERTIES DEBUG_POSTFIX "D")
+	set_target_properties(kqueue_static PROPERTIES DEBUG_POSTFIX "D" POSITION_INDEPENDENT_CODE true OUTPUT_NAME "${KQUEUE_NAME}")
 	list(APPEND INSTALL_TARGETS kqueue_static)
 endif()
 
@@ -111,10 +114,14 @@ if (NOT CMAKE_INSTALL_LIBDIR)
 	set(CMAKE_INSTALL_LIBDIR lib)
 endif ()
 
-install(TARGETS ${INSTALL_TARGETS} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${LIB_INSTALL_PATH})
-install(FILES ${INCL} DESTINATION "include/kqueue/sys")
+if (UNIX)
+	install(TARGETS ${INSTALL_TARGETS} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+	install(FILES ${INCL} DESTINATION "include/${INCLUDE_DIRECTORY}/sys")
+	install(FILES ${kqueue_MANPAGES} DESTINATION "share/man/man2")
+	
+	set(CPACK_GENERATOR "TGZ DEB" CACHE STRING "Installer types to generate. Sensible options include TGZ, RPM and DEB")
+endif ()
 
-set(CPACK_GENERATOR "TGZ DEB" CACHE STRING "Installer types to generate.  Sensible options include TGZ, RPM and DEB")
 set(CPACK_PACKAGE_CONTACT			 	"Not Me <noone@foobar.com>")
 set(CPACK_PACKAGE_NAME					"LIBKQUEUE0")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY	"A user space implementation of the kqueue(2) kernel event notification mechanism")
@@ -123,12 +130,12 @@ set(CPACK_PACKAGE_DESCRIPTION_FILE		"${kqueue_SOURCE_DIR}/README.md")
 set(CPACK_PACKAGE_VERSION_MAJOR			"${kqueue_VERSION_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR			"${kqueue_VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH			"${kqueue_VERSION_PATCH}")
-
-set(CPACK_DEBIAN_PACKAGE_VERSION		"${kqueue_VERSION}")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS		"libc6 (>=2.7)")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY     "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}")
 
 if (UNIX)
+	set(CPACK_DEBIAN_PACKAGE_VERSION		"${kqueue_VERSION}")
+	set(CPACK_DEBIAN_PACKAGE_DEPENDS		"libc6 (>=2.7)")
+	
 	set(CPACK_STRIP_FILES true CACHE BOOL "Strip libraries when packaging")
 endif ()
 include (CPack)
