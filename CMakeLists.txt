@@ -18,28 +18,17 @@ cmake_minimum_required(VERSION 2.8)
 INCLUDE (CheckIncludeFiles)
 
 project(kqueue)
-set(KQUEUE_VERSION_MAJOR "2")
-set(KQUEUE_VERSION_MINOR "0")
-set(KQUEUE_VERSION_PATCH "4")
-set(KQUEUE_VERSION "${KQUEUE_VERSION_MAJOR}.${KQUEUE_VERSION_MINOR}.${KQUEUE_VERSION_PATCH}")
 
-include (CPack)
-set(CPACK_STRIP_FILES					ON)
-set(CPACK_PACKAGE_CONTACT			 	"Not Me <noone@foobar.com>")
-set(CPACK_PACKAGE_NAME					"LIBKQUEUE0")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY	"A user space implementation of the kqueue(2) kernel event notification mechanism")
-set(CPACK_RESOURCE_FILE_LICENSE			"${kqueue_SOURCE_DIR}/LICENSE")
-set(CPACK_PACKAGE_DESCRIPTION_FILE		"${kqueue_SOURCE_DIR}/README.md")
-set(CPACK_PACKAGE_VERSION_MAJOR			"${KQUEUE_VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR			"${KQUEUE_VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH			"${KQUEUE_VERSION_PATCH}")
+set(kqueue_VERSION_MAJOR "2")
+set(kqueue_VERSION_MINOR "0")
+set(kqueue_VERSION_PATCH "4")
+set(kqueue_VERSION "${kqueue_VERSION_MAJOR}.${kqueue_VERSION_MINOR}.${kqueue_VERSION_PATCH}")
 
-set(CPACK_DEBIAN_PACKAGE_VERSION		"${KQUEUE_VERSION}")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS		"libc6 (>=2.7)")
 
 #files
 file(GLOB_RECURSE INCL include/*.h)
 source_group(includes FILES ${INCL})
+set(kqueue_HDRS include/sys/event.h)
 
 if(WIN32)
 	file(GLOB SRC 
@@ -103,20 +92,50 @@ include_directories(
 )
 
 #library (static or shared)
+add_library(kqueue_shared SHARED ${SRC} ${INCL})
+target_link_libraries(kqueue_shared ${LIB})
+set_target_properties(kqueue_shared PROPERTIES DEBUG_POSTFIX "D")
+set(INSTALL_TARGETS kqueue_shared)
+
 option(STATIC_KQUEUE "Enable to build libkqueue as static lib" OFF)
-option(SHARED_KQUEUE "Enable to build libkqueue as shared lib" ON)
+
 if(STATIC_KQUEUE)
 	message("-- building libkqueue as static lib")
     add_library(kqueue_static STATIC ${SRC} ${INCL})
 	target_link_libraries(kqueue_static ${LIB})
 	set_target_properties(kqueue_static PROPERTIES DEBUG_POSTFIX "D")
+	list(APPEND INSTALL_TARGETS kqueue_static)
 endif()
-if(SHARED_KQUEUE OR NOT STATIC_KQUEUE)
-	message("-- building libkqueue as shared lib")
-    add_library(kqueue_shared SHARED ${SRC} ${INCL})
-	target_link_libraries(kqueue_shared ${LIB})
-	set_target_properties(kqueue_shared PROPERTIES DEBUG_POSTFIX "D")
-endif()
+
+set(INCLUDE_DIRECTORY "kqueue" CACHE STRING "Subdirectory of the include path to install the headers.")
+
+if (NOT CMAKE_INSTALL_LIBDIR)
+	set(CMAKE_INSTALL_LIBDIR lib)
+endif ()
+
+set(LIB_INSTALL_PATH    "${CMAKE_INSTALL_LIBDIR}" CACHE STRING "Subdirectory of the root prefix where libraries are installed.")
+set(HEADER_INSTALL_PATH "include"                 CACHE STRING "")
+
+install(TARGETS ${INSTALL_TARGETS} LIBRARY DESTINATION ${LIB_INSTALL_PATH} ARCHIVE DESTINATION ${LIB_INSTALL_PATH})
+install(FILES ${INCL} DESTINATION "include/${INCLUDE_DIRECTORY}/sys")
+
+set(CPACK_GENERATOR "TGZ DEB" CACHE STRING "Installer types to generate.  Sensible options include TGZ, RPM and DEB")
+set(CPACK_PACKAGE_CONTACT			 	"Not Me <noone@foobar.com>")
+set(CPACK_PACKAGE_NAME					"LIBKQUEUE0")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY	"A user space implementation of the kqueue(2) kernel event notification mechanism")
+set(CPACK_RESOURCE_FILE_LICENSE			"${kqueue_SOURCE_DIR}/LICENSE")
+set(CPACK_PACKAGE_DESCRIPTION_FILE		"${kqueue_SOURCE_DIR}/README.md")
+set(CPACK_PACKAGE_VERSION_MAJOR			"${kqueue_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR			"${kqueue_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH			"${kqueue_VERSION_PATCH}")
+
+set(CPACK_DEBIAN_PACKAGE_VERSION		"${kqueue_VERSION}")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS		"libc6 (>=2.7)")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY     "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}")
+if (UNIX)
+	set(CPACK_STRIP_FILES true CACHE BOOL "Strip libraries when packaging")
+endif ()
+include (CPack)
 
 #tests
 option(KQUEUE_TESTS "Enable to build tests for libkqueue" OFF)
@@ -124,3 +143,4 @@ if(KQUEUE_TESTS)
     message("-- Adding tests for libkqueue")
     add_subdirectory(test)
 endif()
+
