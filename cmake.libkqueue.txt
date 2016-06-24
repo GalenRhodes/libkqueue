@@ -1,0 +1,30 @@
+set(copts	"-Ofast -g0")
+set(ldopts	"-Wl,--strip-all")
+
+set(CMAKE_C_FLAGS_ARMV8_C2				"-march=armv8-a -mtune=cortex-a53 -mcpu=cortex-a53 -w"								CACHE STRING	"")
+set(CMAKE_C_FLAGS_ARMV7_XU4				"-march=armv7-a -mtune=cortex-a15 -mcpu=cortex-a15 -mfpu=vfpv4 -mfloat-abi=hard -w"	CACHE STRING	"")
+set(CMAKE_C_FLAGS_ARMV7_RPI2			"-march=armv7-a -mtune=cortex-a7 -mcpu=cortex-a7 -mfpu=vfpv4 -mfloat-abi=hard -w"	CACHE STRING	"")
+
+set(CMAKE_C_FLAGS						"${CMAKE_C_FLAGS_ARMV8_C2} -integrated-as -Qunused-arguments"						CACHE STRING	"")
+set(CMAKE_CXX_FLAGS						"${CMAKE_C_FLAGS}"																	CACHE STRING	"")
+
+set(CMAKE_C_COMPILER					"/usr/bin/clang"																	CACHE FILEPATH	"")
+set(CMAKE_CXX_COMPILER					"/usr/bin/clang++"																	CACHE FILEPATH	"")
+
+set(CMAKE_BUILD_TYPE					"Release"																			CACHE STRING	"")
+set(CMAKE_C_FLAGS_RELEASE				"${copts}"																			CACHE STRING	"")
+set(CMAKE_CXX_FLAGS_RELEASE				"${copts}"																			CACHE STRING	"")
+set(CMAKE_EXE_LINKER_FLAGS				""																					CACHE STRING	"")
+set(CMAKE_EXE_LINKER_FLAGS_RELEASE		"${ldopts}"																			CACHE STRING	"")
+set(CMAKE_MODULE_LINKER_FLAGS			""																					CACHE STRING	"")
+set(CMAKE_MODULE_LINKER_FLAGS_RELEASE	"${ldopts}"																			CACHE STRING	"")
+set(CMAKE_SHARED_LINKER_FLAGS			""																					CACHE STRING	"")
+set(CMAKE_SHARED_LINKER_FLAGS_RELEASE	"${ldopts}"																			CACHE STRING	"")
+set(CMAKE_STATIC_LINKER_FLAGS			""																					CACHE STRING	"")
+set(CMAKE_STATIC_LINKER_FLAGS_RELEASE	""																					CACHE STRING	"")
+set(CMAKE_INSTALL_PREFIX				"/usr"																				CACHE PATH		"")
+set(CMAKE_LINKER						"/usr/bin/ld.gold"																	CACHE FILEPATH	"")
+
+set(STATIC_KQUEUE						ON																					CACHE BOOL		"")
+set(CPACK_BINARY_DEB					ON																					CACHE BOOL		"")
+
