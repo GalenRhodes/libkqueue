@@ -107,17 +107,12 @@ if(STATIC_KQUEUE)
 	list(APPEND INSTALL_TARGETS kqueue_static)
 endif()
 
-set(INCLUDE_DIRECTORY "kqueue" CACHE STRING "Subdirectory of the include path to install the headers.")
-
 if (NOT CMAKE_INSTALL_LIBDIR)
 	set(CMAKE_INSTALL_LIBDIR lib)
 endif ()
 
-set(LIB_INSTALL_PATH    "${CMAKE_INSTALL_LIBDIR}" CACHE STRING "Subdirectory of the root prefix where libraries are installed.")
-set(HEADER_INSTALL_PATH "include"                 CACHE STRING "")
-
-install(TARGETS ${INSTALL_TARGETS} LIBRARY DESTINATION ${LIB_INSTALL_PATH} ARCHIVE DESTINATION ${LIB_INSTALL_PATH})
-install(FILES ${INCL} DESTINATION "include/${INCLUDE_DIRECTORY}/sys")
+install(TARGETS ${INSTALL_TARGETS} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${LIB_INSTALL_PATH})
+install(FILES ${INCL} DESTINATION "include/kqueue/sys")
 
 set(CPACK_GENERATOR "TGZ DEB" CACHE STRING "Installer types to generate.  Sensible options include TGZ, RPM and DEB")
 set(CPACK_PACKAGE_CONTACT			 	"Not Me <noone@foobar.com>")
@@ -132,6 +127,7 @@ set(CPACK_PACKAGE_VERSION_PATCH			"${kqueue_VERSION_PATCH}")
 set(CPACK_DEBIAN_PACKAGE_VERSION		"${kqueue_VERSION}")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS		"libc6 (>=2.7)")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY     "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}")
+
 if (UNIX)
 	set(CPACK_STRIP_FILES true CACHE BOOL "Strip libraries when packaging")
 endif ()
