@@ -62,6 +62,7 @@ if(WIN32)
         SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}  -march=i486")
         SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=i486")
     endif()
+	set(LIB ${LIB} Ws2_32)
 else()
 	file(GLOB SRC 
 		src/posix/*.h
@@ -92,6 +93,7 @@ else()
 		-std=c99
 		-fvisibility=hidden
 	)
+	set(LIB ${LIB} pthread)
 endif()
 source_group(src FILES ${SRC})
 
@@ -105,21 +107,16 @@ option(STATIC_KQUEUE "Enable to build libkqueue as static lib" OFF)
 option(SHARED_KQUEUE "Enable to build libkqueue as shared lib" ON)
 if(STATIC_KQUEUE)
 	message("-- building libkqueue as static lib")
-    add_library(kqueue STATIC ${SRC} ${INCL})
+    add_library(kqueue_static STATIC ${SRC} ${INCL})
+	target_link_libraries(kqueue_static ${LIB})
+	set_target_properties(kqueue_static PROPERTIES DEBUG_POSTFIX "D")
 endif()
 if(SHARED_KQUEUE OR NOT STATIC_KQUEUE)
 	message("-- building libkqueue as shared lib")
-    add_library(kqueue SHARED ${SRC} ${INCL})
+    add_library(kqueue_shared SHARED ${SRC} ${INCL})
+	target_link_libraries(kqueue_shared ${LIB})
+	set_target_properties(kqueue_shared PROPERTIES DEBUG_POSTFIX "D")
 endif()
-
-
-if(WIN32)
-	set(LIB ${LIB} Ws2_32)
-else()
-	set(LIB ${LIB} pthread)
-endif()
-target_link_libraries(kqueue ${LIB})
-set_target_properties(kqueue PROPERTIES DEBUG_POSTFIX "D")
 
 #tests
 option(KQUEUE_TESTS "Enable to build tests for libkqueue" OFF)
