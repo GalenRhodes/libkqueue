@@ -102,12 +102,16 @@ include_directories(
 
 #library (static or shared)
 option(STATIC_KQUEUE "Enable to build libkqueue as static lib" OFF)
+option(SHARED_KQUEUE "Enable to build libkqueue as shared lib" ON)
 if(STATIC_KQUEUE)
 	message("-- building libkqueue as static lib")
     add_library(kqueue STATIC ${SRC} ${INCL})
-else()
+endif()
+if(SHARED_KQUEUE OR NOT STATIC_KQUEUE)
+	message("-- building libkqueue as shared lib")
     add_library(kqueue SHARED ${SRC} ${INCL})
 endif()
+
 
 if(WIN32)
 	set(LIB ${LIB} Ws2_32)
