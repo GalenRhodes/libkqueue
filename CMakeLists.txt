@@ -20,8 +20,8 @@ INCLUDE (CheckIncludeFiles)
 project(kqueue)
 
 set(kqueue_VERSION_MAJOR "2")
-set(kqueue_VERSION_MINOR "0")
-set(kqueue_VERSION_PATCH "4")
+set(kqueue_VERSION_MINOR "1")
+set(kqueue_VERSION_PATCH "0")
 set(kqueue_VERSION "${kqueue_VERSION_MAJOR}.${kqueue_VERSION_MINOR}.${kqueue_VERSION_PATCH}")
 
 
@@ -52,7 +52,6 @@ if(WIN32)
         SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}  -march=i486")
         SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=i486")
     endif()
-	set(LIB ${LIB} Ws2_32)
 else()
 	file(GLOB SRC 
 		src/posix/*.h
@@ -78,11 +77,11 @@ else()
 	)
 	add_definitions(
 		-Wall -Werror
+		-fpic
 		-D_XOPEN_SOURCE=600
 		-std=c99
 		-fvisibility=hidden
 	)
-	set(LIB ${LIB} pthread)
 endif()
 source_group(src FILES ${SRC})
 
@@ -91,6 +90,12 @@ include_directories(
 	include
 )
 
+if(WIN32)
+	set(LIB ${LIB} Ws2_32)
+endif()
+if(NOT WIN32)
+	set(LIB ${LIB} pthread)
+endif()
 set(KQUEUE_NAME       "kqueue" CACHE STRING "Name of the library (e.g. \"kqueue\" for \"libkqueue\")")
 set(INCLUDE_DIRECTORY "kqueue" CACHE STRING "Subdirectory of the include path to install the headers.")
 
@@ -101,7 +106,6 @@ set_target_properties(kqueue_shared PROPERTIES DEBUG_POSTFIX "D" LINKER_LANGUAGE
 set(INSTALL_TARGETS kqueue_shared)
 
 option(STATIC_KQUEUE "Enable to build libkqueue as static lib" OFF)
-
 if(STATIC_KQUEUE)
 	message("-- building libkqueue as static lib")
     add_library(kqueue_static STATIC ${SRC} ${INCL})
@@ -123,7 +127,7 @@ if (UNIX)
 endif ()
 
 set(CPACK_PACKAGE_CONTACT			 	"Not Me <noone@foobar.com>")
-set(CPACK_PACKAGE_NAME					"LIBKQUEUE0")
+set(CPACK_PACKAGE_NAME					"libkqueue0")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY	"A user space implementation of the kqueue(2) kernel event notification mechanism")
 set(CPACK_RESOURCE_FILE_LICENSE			"${kqueue_SOURCE_DIR}/LICENSE")
 set(CPACK_PACKAGE_DESCRIPTION_FILE		"${kqueue_SOURCE_DIR}/README.md")
@@ -135,7 +139,7 @@ set(CPACK_PACKAGE_INSTALL_DIRECTORY     "CMake ${CMake_VERSION_MAJOR}.${CMake_VE
 if (UNIX)
 	set(CPACK_DEBIAN_PACKAGE_VERSION		"${kqueue_VERSION}")
 	set(CPACK_DEBIAN_PACKAGE_DEPENDS		"libc6 (>=2.7)")
-	
+	set(CPACK_DEBIAN_PACKAGE_REPLACES       "${CPACK_PACKAGE_NAME} (<<${kqueue_VERSION})")
 	set(CPACK_STRIP_FILES true CACHE BOOL "Strip libraries when packaging")
 endif ()
 include (CPack)
@@ -146,4 +150,3 @@ if(KQUEUE_TESTS)
     message("-- Adding tests for libkqueue")
     add_subdirectory(test)
 endif()
-
