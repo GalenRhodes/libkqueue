@@ -14,139 +14,136 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #
 
-cmake_minimum_required(VERSION 2.8)
-INCLUDE (CheckIncludeFiles)
+cmake_minimum_required(VERSION 2.8.4)
+cmake_policy(SET CMP0063 OLD)
 
-project(kqueue)
+project(kqueue C)
 
-set(kqueue_VERSION_MAJOR "2")
-set(kqueue_VERSION_MINOR "1")
-set(kqueue_VERSION_PATCH "0")
-set(kqueue_VERSION "${kqueue_VERSION_MAJOR}.${kqueue_VERSION_MINOR}.${kqueue_VERSION_PATCH}")
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 99)
 
+option(STATIC_KQUEUE "build libkqueue as static library" OFF)
+option(ENABLE_TESTS "build tests for libkqueue" OFF)
 
-#files
-file(GLOB_RECURSE INCL include/*.h)
-source_group(includes FILES ${INCL})
-set(kqueue_HDRS include/sys/event.h)
-set(kqueue_MANPAGES kqueue.2)
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREADS_FLAG TRUE)
+find_package(Threads REQUIRED)
 
-if(WIN32)
-	file(GLOB SRC 
-		src/windows/*.h
-		src/windows/*.c
-        src/common/*.h
-		src/*.c
-        src/common/map.c
-        src/common/filter.c
-        src/common/knote.c
-        src/common/kevent.c
-        src/common/kqueue.c
-	)
-	add_definitions(
-		-DLIBKQUEUE_EXPORTS
-		-D_USRDLL
-		-D_WINDLL
-	)
-    if(MINGW)
-        SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}  -march=i486")
-        SET(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -march=i486")
-    endif()
+include(CheckIncludeFiles)
+include(CheckSymbolExists)
+
+check_include_files(sys/signalfd.h HAVE_SYS_SIGNALFD_H)
+check_include_files(sys/timerfd.h HAVE_SYS_TIMERFD_H)
+check_include_files(sys/eventfd.h HAVE_SYS_EVENTFD_H)
+if(ENABLE_TESTS)
+  check_include_files(err.h HAVE_ERR_H)
+endif()
+
+check_symbol_exists(EPOLLRDHUP sys/epoll.h HAVE_EPOLLRDHUP)
+check_symbol_exists(NOTE_TRUNCATE sys/event.h HAVE_NOTE_TRUNCATE)
+if(ENABLE_TESTS)
+  check_symbol_exists(NOTE_REVOKE sys/event.h HAVE_NOTE_REVOKE)
+endif()
+
+set(CMAKE_REQUIRED_DEFINITIONS -D_GNU_SOURCE)
+check_symbol_exists(ppoll poll.h HAVE_DECL_PPOLL)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+set(LIBKQUEUE_HEADERS
+    include/sys/event.h)
+
+set(LIBKQUEUE_SOURCES
+    src/common/alloc.h
+    src/common/debug.h
+    src/common/filter.c
+    src/common/kevent.c
+    src/common/knote.c
+    src/common/kqueue.c
+    src/common/map.c
+    src/common/private.h
+    src/common/queue.h
+    src/common/tree.h)
+
+if(CMAKE_SYSTEM_NAME MATCHES Windows)
+  list(APPEND LIBKQUEUE_SOURCES
+       src/windows/platform.c
+       src/windows/platform.h
+       src/windows/read.c
+       src/windows/stdint.h
+       src/windows/timer.c
+       src/windows/user.c)
+elseif(CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
+  list(APPEND LIBKQUEUE_SOURCES
+       src/posix/platform.c
+       src/posix/platform.h
+       src/solaris/platform.c
+       src/solaris/platform.h
+       src/solaris/signal.c
+       src/solaris/socket.c
+       src/solaris/timer.c
+       src/solaris/user.c)
+elseif(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  list(APPEND LIBKQUEUE_SOURCES
+       src/posix/platform.c
+       src/posix/platform.h
+       src/linux/platform.c
+       src/linux/platform.h
+       src/linux/read.c
+       src/linux/signal.c
+       src/linux/timer.c
+       src/linux/user.c
+       src/linux/vnode.c
+       src/linux/write.c)
 else()
-	file(GLOB SRC 
-		src/posix/*.h
-		src/posix/platform.c
-		src/linux/*.h
-		src/linux/platform.c
-		src/linux/signal.c
-		src/linux/socket.c
-		src/linux/timer.c
-		src/linux/user.c
-		src/linux/vnode.c
-		src/linux/write.c
-		src/linux/read.c
-		src/common/*.h
-		src/common/filter.c
-		src/common/knote.c
-		src/common/map.c
-		src/common/kevent.c
-		src/common/kqueue.c		
-	)
-	include_directories(
-		src/common
-	)
-	add_definitions(
-		-Wall -Werror
-		-fpic
-		-D_XOPEN_SOURCE=600
-		-std=c99
-		-fvisibility=hidden
-	)
+  message(FATAL_ERROR "unsupported host os")
 endif()
-source_group(src FILES ${SRC})
 
-#includes
-include_directories(
-	include
-)
+source_group(includes
+             FILES
+               ${LIBKQUEUE_HEADERS})
+source_group(src
+             FILES
+               ${LIBKQUEUE_SOURCES})
+
+if(STATIC_KQUEUE)
+  set(LIBRARY_TYPE STATIC)
+else()
+  set(LIBRARY_TYPE SHARED)
+endif()
+
+add_library(kqueue ${LIBRARY_TYPE} ${LIBKQUEUE_SOURCES} ${LIBKQUEUE_HEADERS})
+set_target_properties(kqueue PROPERTIES DEBUG_POSTFIX "D")
 
 if(WIN32)
-	set(LIB ${LIB} Ws2_32)
+  target_compile_definitions(kqueue PRIVATE _USRDLL;_WINDLL)
+  target_compile_definitions(kqueue PRIVATE _CRT_SECURE_NO_WARNINGS)
+else()
+  target_compile_definitions(kqueue PRIVATE _XOPEN_SOURCE=600)
 endif()
+
+target_include_directories(kqueue PRIVATE include)
 if(NOT WIN32)
-	set(LIB ${LIB} pthread)
-endif()
-set(KQUEUE_NAME       "kqueue" CACHE STRING "Name of the library (e.g. \"kqueue\" for \"libkqueue\")")
-set(INCLUDE_DIRECTORY "kqueue" CACHE STRING "Subdirectory of the include path to install the headers.")
-
-#library (static or shared)
-add_library(kqueue_shared SHARED ${SRC} ${INCL})
-target_link_libraries(kqueue_shared ${LIB})
-set_target_properties(kqueue_shared PROPERTIES DEBUG_POSTFIX "D" LINKER_LANGUAGE C SOVERSION ${kqueue_VERSION} OUTPUT_NAME "${KQUEUE_NAME}")
-set(INSTALL_TARGETS kqueue_shared)
-
-option(STATIC_KQUEUE "Enable to build libkqueue as static lib" OFF)
-if(STATIC_KQUEUE)
-	message("-- building libkqueue as static lib")
-    add_library(kqueue_static STATIC ${SRC} ${INCL})
-	target_link_libraries(kqueue_static ${LIB})
-	set_target_properties(kqueue_static PROPERTIES DEBUG_POSTFIX "D" POSITION_INDEPENDENT_CODE true OUTPUT_NAME "${KQUEUE_NAME}")
-	list(APPEND INSTALL_TARGETS kqueue_static)
+  target_include_directories(kqueue PRIVATE src/common)
 endif()
 
-if (NOT CMAKE_INSTALL_LIBDIR)
-	set(CMAKE_INSTALL_LIBDIR lib)
-endif ()
-
-if (UNIX)
-	install(TARGETS ${INSTALL_TARGETS} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-	install(FILES ${INCL} DESTINATION "include/${INCLUDE_DIRECTORY}/sys")
-	install(FILES ${kqueue_MANPAGES} DESTINATION "share/man/man2")
-	
-	set(CPACK_GENERATOR "TGZ DEB" CACHE STRING "Installer types to generate. Sensible options include TGZ, RPM and DEB")
-endif ()
-
-set(CPACK_PACKAGE_CONTACT			 	"Not Me <noone@foobar.com>")
-set(CPACK_PACKAGE_NAME					"libkqueue0")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY	"A user space implementation of the kqueue(2) kernel event notification mechanism")
-set(CPACK_RESOURCE_FILE_LICENSE			"${kqueue_SOURCE_DIR}/LICENSE")
-set(CPACK_PACKAGE_DESCRIPTION_FILE		"${kqueue_SOURCE_DIR}/README.md")
-set(CPACK_PACKAGE_VERSION_MAJOR			"${kqueue_VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR			"${kqueue_VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH			"${kqueue_VERSION_PATCH}")
-set(CPACK_PACKAGE_INSTALL_DIRECTORY     "CMake ${CMake_VERSION_MAJOR}.${CMake_VERSION_MINOR}")
-
-if (UNIX)
-	set(CPACK_DEBIAN_PACKAGE_VERSION		"${kqueue_VERSION}")
-	set(CPACK_DEBIAN_PACKAGE_DEPENDS		"libc6 (>=2.7)")
-	set(CPACK_DEBIAN_PACKAGE_REPLACES       "${CPACK_PACKAGE_NAME} (<<${kqueue_VERSION})")
-	set(CPACK_STRIP_FILES true CACHE BOOL "Strip libraries when packaging")
-endif ()
-include (CPack)
-
-#tests
-option(KQUEUE_TESTS "Enable to build tests for libkqueue" OFF)
-if(KQUEUE_TESTS)
-    message("-- Adding tests for libkqueue")
-    add_subdirectory(test)
+if(CMAKE_C_COMPILER_ID MATCHES GNU)
+  target_compile_options(kqueue PRIVATE -Wall -Werror)
 endif()
+if(MINGW AND CMAKE_C_COMPILER_ID MATCHES GNU)
+  target_compile_options(kqueue PRIVATE -march=i486)
+endif()
+
+if(WIN32)
+  target_link_libraries(kqueue PRIVATE Ws2_32)
+endif()
+target_link_libraries(kqueue PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+
+if(ENABLE_TESTS)
+  add_subdirectory(test)
+endif()
+
